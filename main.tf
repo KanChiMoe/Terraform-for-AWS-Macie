@@ -10,7 +10,7 @@ resource "aws_macie2_classification_job" "PPIFinderJob" {
     job_type = "ONE_TIME"
     name     = "PPI Finder"
     s3_job_definition {
-        bucket_definations {
+        bucket_definitions {
             account_id = data.aws_caller_identity.current.account_id
             buckets = [aws_s3_bucket.AB_Discord_logs]
         }
@@ -43,30 +43,32 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose" {
     extended_s3_configuration {
     role_arn   = aws_iam_role.ABDiscord_Firehose.arn
     bucket_arn = aws_s3_bucket.AB_Discord_logs.arn
+    
+
+        data_format_conversion_configuration {
+            input_format_configuration { 
+                deserializer {
+                    hive_json_ser_de {}
+                }
+            }
+
+            output_format_configuration {
+                serializer {
+                    parquet_ser_de {}
+                }
+            }
+
+            schema_configuration {
+                database_name = aws_glue_catalog_table.ABDiscord_Macie_Firehose_table.database_name
+                table_name = aws_glue_catalog_table.ABDiscord_Macie_Firehose_table.name
+                role_arn = aws_iam_role.ABDiscord_Firehose.arn
+            }
+        }
     }
 
-    server_side_encryption = {
+    server_side_encryption {
+        enabled = true
         key_type = "AWS_OWNED_CMK"
-    }
-
-    data_format_conversion_configuration {
-        input_format_configuration { 
-            deserializer {
-                hive_json_ser_de {}
-            }
-        }
-
-        output_format_configuration {
-            serializer {
-            parquet_ser_de_ser_de {}
-            }
-        }
-
-        schema_configuration {
-            database_name = aws_glue_catalog_table.ABDiscord_Macie_Firehose_table.database_name
-            table_name = aws_glue_catalog_table.ABDiscord_Macie_Firehose_table.name
-            role_arn = aws_iam_role.ABDiscord_Firehose.arn
-        }
     }
 
     tags = {
@@ -78,30 +80,23 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose" {
 # Glue DB, for Firehose
 
 resource "aws_glue_catalog_database" "ABDiscord_Macie_Firehose_db" {
-  name = "ABDiscord_Firehose_Macie"
-
-    tags = {
-        terraform = "true"
-        use = "Kanchimoe/Macie"
-    }
+  name = "abdiscord_firehose_macie"
 }
 
 resource "aws_glue_catalog_table" "ABDiscord_Macie_Firehose_table" {
-  name          = "ABDiscord_Firehose_dataformat"
+  name          = "abdiscord_firehose_dataformat"
   database_name = "ABDiscord_Firehose_Macie"
 
-  colums {
-      name = "data"
-      type = "struct<id:INT,channel_id:INT,guild_id:INT,content:string>"
-  }
-  colums {
-      name = "author"
-      type = "struct<id:INT,username:string,discriminator:string>" 
-  }
+  storage_descriptor {
 
-  tags = {
-      terraform = "true"
-      use = "Kanchimoe/macie"
+    columns {
+        name = "data"
+        type = "struct<id:INT,channel_id:INT,guild_id:INT,content:string>"
+    }
+    columns {
+        name = "author"
+        type = "struct<id:INT,username:string,discriminator:string>" 
+    }
   }
 }
 
@@ -128,7 +123,7 @@ resource "aws_iam_policy" "ABDiscord_Firehose_policy" {
 }
 
 data "aws_iam_policy_document" "ABDiscord_Firehose_AR" {
-    statment {
+    statement {
         actions = [
             "sts:AssumeRole"
         ]
@@ -140,18 +135,18 @@ data "aws_iam_policy_document" "ABDiscord_Firehose_AR" {
 }
 
 data "aws_iam_policy_document" "ABDiscord_Firehose_policy" {
-    statment {
+    statement {
         actions = [
             # Access AWS Glue
             "glue:GetTable",
             "glue:GetTableVersion",
             "glue:GetTableVersions"
         ]
-        resource = [
+        resources = [
             aws_glue_catalog_table.ABDiscord_Macie_Firehose_table.arn
             ]
     }
-    statment {
+    statement {
         actions = [
             # Access S3 bucket
             "s3:AbortMultipartUpload",
@@ -161,7 +156,7 @@ data "aws_iam_policy_document" "ABDiscord_Firehose_policy" {
             "s3:ListBucketMultipartUploads",
             "s3:PutObject" 
         ]
-        resource = [
+        resources = [
             aws_s3_bucket.AB_Discord_logs.arn
         ]
     }
