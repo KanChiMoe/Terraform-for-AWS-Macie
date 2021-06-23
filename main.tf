@@ -1,18 +1,17 @@
 # Get AWS account info
-
 data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
 
 # Begin Macie
-
 resource "aws_macie2_account" "PIIFinder" {}
 
-resource "aws_macie2_classification_job" "PPIFinderJob" {
+resource "aws_macie2_classification_job" "ppi-finder-job" {
     job_type = "ONE_TIME"
     name     = "PPI Finder"
     s3_job_definition {
         bucket_definitions {
             account_id = data.aws_caller_identity.current.account_id
-            buckets = [aws_s3_bucket.AB_Discord_logs]
+            buckets = [aws_s3_bucket.AB_Discord_logs.bucket]
         }
     }
     depends_on = [aws_macie2_account.PIIFinder]
@@ -23,9 +22,8 @@ resource "aws_macie2_classification_job" "PPIFinderJob" {
     }
 }
 
-
 resource "aws_s3_bucket" "AB_Discord_logs" {
-  bucket = "AB_Discord_logs"
+  bucket = "ab-discord-logs"
   acl    = "private"
 
     tags = {
@@ -35,7 +33,6 @@ resource "aws_s3_bucket" "AB_Discord_logs" {
 }
 
 # Firehose
-
 resource "aws_kinesis_firehose_delivery_stream" "firehose" {
     name        = "ABDiscord_PPI_Firehose"
     destination = "extended_s3"
@@ -43,7 +40,7 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose" {
     extended_s3_configuration {
     role_arn   = aws_iam_role.ABDiscord_Firehose.arn
     bucket_arn = aws_s3_bucket.AB_Discord_logs.arn
-    
+    buffer_size = 64
 
         data_format_conversion_configuration {
             input_format_configuration { 
@@ -78,14 +75,13 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose" {
 }
 
 # Glue DB, for Firehose
-
 resource "aws_glue_catalog_database" "ABDiscord_Macie_Firehose_db" {
   name = "abdiscord_firehose_macie"
 }
 
 resource "aws_glue_catalog_table" "ABDiscord_Macie_Firehose_table" {
   name          = "abdiscord_firehose_dataformat"
-  database_name = "ABDiscord_Firehose_Macie"
+  database_name = split(":", aws_glue_catalog_database.ABDiscord_Macie_Firehose_db.id)[1]
 
   storage_descriptor {
 
@@ -98,8 +94,10 @@ resource "aws_glue_catalog_table" "ABDiscord_Macie_Firehose_table" {
         type = "struct<id:INT,username:string,discriminator:string>" 
     }
   }
+    depends_on = [aws_glue_catalog_database.ABDiscord_Macie_Firehose_db]
 }
 
+# IAM
 resource "aws_iam_role" "ABDiscord_Firehose" {
     name = "ABDiscord_Macie_Firehose"
     assume_role_policy = data.aws_iam_policy_document.ABDiscord_Firehose_AR.json
@@ -143,9 +141,11 @@ data "aws_iam_policy_document" "ABDiscord_Firehose_policy" {
             "glue:GetTableVersions"
         ]
         resources = [
-            aws_glue_catalog_table.ABDiscord_Macie_Firehose_table.arn
-            ]
-    }
+            aws_glue_catalog_database.ABDiscord_Macie_Firehose_db.arn,
+            aws_glue_catalog_table.ABDiscord_Macie_Firehose_table.arn,
+            "arn:aws:glue:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:catalog"
+        ]
+     }  
     statement {
         actions = [
             # Access S3 bucket
@@ -160,4 +160,9 @@ data "aws_iam_policy_document" "ABDiscord_Firehose_policy" {
             aws_s3_bucket.AB_Discord_logs.arn
         ]
     }
+}
+
+resource "aws_iam_role_policy_attachment" "ABDiscord_Firehose_Attachment" {
+  role       = aws_iam_role.ABDiscord_Firehose.name
+  policy_arn = aws_iam_policy.ABDiscord_Firehose_policy.arn
 }
