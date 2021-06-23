@@ -6,19 +6,18 @@ data "aws_region" "current" {}
 resource "aws_macie2_account" "PIIFinder" {}
 
 resource "aws_macie2_classification_job" "ppi-finder-job" {
-    job_type = "ONE_TIME"
-    name     = "PPI Finder"
-    s3_job_definition {
-        bucket_definitions {
-            account_id = data.aws_caller_identity.current.account_id
-            buckets = [aws_s3_bucket.AB_Discord_logs.bucket]
-        }
-    }
-    depends_on = [aws_macie2_account.PIIFinder]
-
-    tags = {
-        terraform = "true"
-        use = "Kanchimoe/Macie"
+   job_type = "ONE_TIME"
+   name     = "PPI Finder"
+   s3_job_definition {
+       bucket_definitions {
+           account_id = data.aws_caller_identity.current.account_id
+           buckets = [aws_s3_bucket.AB_Discord_logs.bucket]
+       }
+   }
+   depends_on = [aws_macie2_account.PIIFinder]
+   tags = {
+       terraform = "true"
+       use = "Kanchimoe/Macie"
     }
 }
 
