@@ -37,7 +37,6 @@ resource "aws_kinesis_stream" "AB_Discord_KinesisStream" {
     shard_count = 1
     retention_period = 24
 
-
     tags = {
         terraform = "true"
         use = "Kanchimoe/Macie"
