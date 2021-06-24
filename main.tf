@@ -62,9 +62,9 @@ resource "aws_kinesis_firehose_delivery_stream" "firehose" {
         }
     }
 
-    server_side_encryption {
-        enabled = true
-        key_type = "AWS_OWNED_CMK"
+    kinesis_source_configuration {
+        kinesis_stream_arn = aws_kinesis_stream.AB_Discord_KinesisStream.arn
+        role_arn = aws_iam_role.ABDiscord_Firehose.arn
     }
 
     tags = {
