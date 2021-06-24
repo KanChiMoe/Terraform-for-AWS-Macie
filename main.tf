@@ -156,7 +156,20 @@ data "aws_iam_policy_document" "ABDiscord_Firehose_policy" {
             "s3:PutObject" 
         ]
         resources = [
-            aws_s3_bucket.AB_Discord_logs.arn
+            aws_s3_bucket.AB_Discord_logs.arn,
+            "arn:aws:s3:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${aws_s3_bucket.AB_Discord_logs.bucket}/*"
+        ]
+    }
+    statement {
+        actions = [
+            # Access Kinesis
+            "kinesis:DescribeStream",
+            "kinesis:GetShardIterator",
+            "kinesis:GetRecords",
+            "kinesis:ListShards"
+        ]
+        resources = [
+            aws_kinesis_stream.AB_Discord_KinesisStream.arn
         ]
     }
 }
