@@ -31,6 +31,19 @@ resource "aws_s3_bucket" "AB_Discord_logs" {
     }
 }
 
+# Kinesis
+resource "aws_kinesis_stream" "AB_Discord_KinesisStream" {
+    name = "ABDiscord_Kinesis_Stream"
+    shard_count = 1
+    retention_period = 24
+
+
+    tags = {
+        terraform = "true"
+        use = "Kanchimoe/Macie"
+    }
+}
+
 # Firehose
 resource "aws_kinesis_firehose_delivery_stream" "firehose" {
     name        = "ABDiscord_PPI_Firehose"
