@@ -85,12 +85,24 @@ resource "aws_glue_catalog_table" "ABDiscord_Macie_Firehose_table" {
   storage_descriptor {
 
     columns {
-        name = "data"
-        type = "struct<id:INT,channel_id:INT,guild_id:INT,content:string>"
+        name = "content"
+        type = "string"
+    }
+    columns {
+        name = "id"
+        type = "string"
     }
     columns {
         name = "author"
-        type = "struct<id:INT,username:string,discriminator:string>" 
+        type = "struct<id:string,username:string,discriminator:string>" 
+    }
+    columns {
+        name = "channel_id"
+        type = "string"
+    }
+    columns {
+        name = "guild_id"
+        type = "string"
     }
   }
     depends_on = [aws_glue_catalog_database.ABDiscord_Macie_Firehose_db]
