@@ -1,3 +1,13 @@
+# Provider
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "~>3.0"
+    }
+  }
+}
+
 # Get AWS account info
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
